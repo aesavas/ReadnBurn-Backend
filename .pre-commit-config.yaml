@@ -37,5 +37,6 @@ repos:
         additional_dependencies:
           - django-stubs
           - djangorestframework-stubs
+          - python-decouple-stubs
         args:
           - --strict
