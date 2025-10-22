@@ -31,6 +31,8 @@ DEBUG = True
 ALLOWED_HOSTS: list[str] = []
 
 
+AUTH_USER_MODEL = "accounts.User"
+
 # Application definition
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=30),
