@@ -17,7 +17,7 @@ class UserRegistrationView(APIView):
             serializer.save()
             return Response(
                 {
-                    "success": True,
+                    "status": "success",
                     "message": "User registered successfully",
                     "data": serializer.data,
                 },
@@ -25,7 +25,7 @@ class UserRegistrationView(APIView):
             )
         return Response(
             {
-                "success": False,
+                "status": "error",
                 "message": "User registration failed",
                 "errors": serializer.errors,
             },

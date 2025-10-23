@@ -29,7 +29,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
 
     def validate_email(self, value: str) -> str:
         if User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("Email is already registered.")
+            raise serializers.ValidationError({"email": "Email is already registered."})
         return value
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
