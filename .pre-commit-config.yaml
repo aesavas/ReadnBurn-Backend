@@ -34,9 +34,30 @@ repos:
     rev: v1.11.1
     hooks:
       - id: mypy
-        additional_dependencies:
-          - django-stubs
-          - djangorestframework-stubs
-          - python-decouple-stubs
-        args:
-          - --strict
+        name: mypy-app
+        files: ^backend/
+        exclude: ^backend/tests/
+        args: [--strict]
+        # additional_dependencies:
+        #   - django
+        #   - djangorestframework
+        #   - django-stubs
+        #   - djangorestframework-stubs
+        #   - python-decouple-stubs
+        env:
+          MYPYPATH: "backend"
+
+      - id: mypy
+        name: mypy-tests
+        files: ^backend/tests/
+        # additional_dependencies:
+        #   - django
+        #   - djangorestframework
+        #   - django-stubs
+        #   - djangorestframework-stubs
+        #   - python-decouple-stubs
+        #   - pytest
+        #   - pytest-django
+        #   - factory-boy
+        env:
+          MYPYPATH: "backend"
