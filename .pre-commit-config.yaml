@@ -44,8 +44,7 @@ repos:
         #   - django-stubs
         #   - djangorestframework-stubs
         #   - python-decouple-stubs
-        env:
-          MYPYPATH: "backend"
+        entry: env MYPYPATH=backend mypy
 
       - id: mypy
         name: mypy-tests
@@ -59,5 +58,4 @@ repos:
         #   - pytest
         #   - pytest-django
         #   - factory-boy
-        env:
-          MYPYPATH: "backend"
+        entry: env MYPYPATH=backend mypy
