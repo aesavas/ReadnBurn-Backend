@@ -1,5 +1,8 @@
+from typing import Callable
+
 import pytest
 from accounts.models import User
+from freezegun import freeze_time
 from rest_framework.test import APIClient
 
 
@@ -182,3 +185,232 @@ def test_user_login_api_fail_with_missing_field(
     assert response_json["status"] == "error"
     assert response_json["message"] == "User login failed"
     assert "password" in response_json["errors"]["detail"]
+
+
+@pytest.mark.django_db
+def test_user_refresh_token_api_successful(
+    api_client: APIClient, user_factory: Callable[..., User]
+) -> None:
+    """Test user refresh token api."""
+
+    user_account = user_factory(password="Str0ngP@ss!")
+
+    login_payload = {
+        "email": user_account.email,
+        "password": "Str0ngP@ss!",
+    }
+
+    response = api_client.post("/api/auth/login/", login_payload)
+    assert response.status_code == 200
+    tokens = response.json()["data"]
+    access_token = tokens["access"]
+    refresh_token = tokens["refresh"]
+
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    refresh_payload = {"refresh": refresh_token}
+    refresh_response = api_client.post("/api/auth/refresh/", refresh_payload)
+
+    assert refresh_response.status_code == 200
+
+    response_json = refresh_response.json()
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "Token refreshed successfully"
+    assert "access" in response_json["data"]
+    assert "refresh" in response_json["data"]
+    assert (
+        response_json["data"]["refresh"] != refresh_token
+    )  # refresh token should be rotated
+
+
+@pytest.mark.django_db
+def test_user_refresh_token_api_fail_with_invalid_token(
+    api_client: APIClient, user_factory: Callable[..., User]
+) -> None:
+    """Test user refresh token api fail with invalid token."""
+
+    user_account = user_factory(password="Str0ngP@ss!")
+
+    login_payload = {
+        "email": user_account.email,
+        "password": "Str0ngP@ss!",
+    }
+
+    response = api_client.post("/api/auth/login/", login_payload)
+    assert response.status_code == 200
+    tokens = response.json()["data"]
+    access_token = tokens["access"]
+
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    refresh_payload = {"refresh": "refresh_token"}
+    refresh_response = api_client.post("/api/auth/refresh/", refresh_payload)
+
+    assert refresh_response.status_code == 401
+
+    response_json = refresh_response.json()
+    assert response_json["status"] == "error"
+    assert response_json["message"] == "Token refresh failed"
+    assert "detail" in response_json["errors"]
+    assert "Token is invalid" in response_json["errors"]["detail"]
+
+
+@pytest.mark.django_db
+@freeze_time("2025-01-01 00:00:00")
+def test_user_refresh_token_api_fail_with_expired_token_from_view(
+    api_client: APIClient, user_factory: Callable[..., User]
+) -> None:
+    """Test user refresh token api fail with expired token."""
+
+    user_account = user_factory(password="Str0ngP@ss!")
+
+    login_payload = {
+        "email": user_account.email,
+        "password": "Str0ngP@ss!",
+    }
+
+    response = api_client.post("/api/auth/login/", login_payload)
+    assert response.status_code == 200
+    tokens = response.json()["data"]
+    refresh_token = tokens["refresh"]
+
+    api_client.credentials()
+    refresh_payload = {"refresh": refresh_token}
+    # Move time forward past the refresh token's expiration date (3 days)
+    with freeze_time("2025-01-05 12:00:00"):
+        refresh_response = api_client.post("/api/auth/refresh/", refresh_payload)
+
+        assert refresh_response.status_code == 401
+
+        response_json = refresh_response.json()
+        assert response_json["status"] == "error"
+        assert response_json["message"] == "Token refresh failed"
+        assert "detail" in response_json["errors"]
+        assert "Token is expired" in response_json["errors"]["detail"]
+
+
+@pytest.mark.django_db
+@freeze_time("2025-01-01 00:00:00")
+def test_user_refresh_token_api_fail_with_expired_token_from_middleware(
+    api_client: APIClient, user_factory: Callable[..., User]
+) -> None:
+    """Test user refresh token api fail with expired token."""
+
+    user_account = user_factory(password="Str0ngP@ss!")
+
+    login_payload = {
+        "email": user_account.email,
+        "password": "Str0ngP@ss!",
+    }
+
+    response = api_client.post("/api/auth/login/", login_payload)
+    assert response.status_code == 200
+    tokens = response.json()["data"]
+    access_token = tokens["access"]
+    refresh_token = tokens["refresh"]
+
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    refresh_payload = {"refresh": refresh_token}
+    # Move time forward past the refresh token's expiration date (3 days)
+    # However, middleware should catch this and return 401
+    with freeze_time("2025-01-05 12:00:00"):
+        refresh_response = api_client.post("/api/auth/refresh/", refresh_payload)
+
+        assert refresh_response.status_code == 401
+
+        response_json = refresh_response.json()
+        assert response_json["detail"] == "Given token not valid for any token type"
+        assert response_json["code"] == "token_not_valid"
+        assert response_json["messages"][0]["message"] == "Token is expired"
+        assert response_json["messages"][0]["token_type"] == "access"
+
+
+@pytest.mark.django_db
+def test_user_logout_api_successful(
+    api_client: APIClient, user_factory: Callable[..., User]
+) -> None:
+    """Test that a user can successfully log out."""
+
+    user_account = user_factory(password="Str0ngP@ss!")
+
+    login_data = {
+        "email": user_account.email,
+        "password": "Str0ngP@ss!",
+    }
+
+    response = api_client.post("/api/auth/login/", login_data)
+    assert response.status_code == 200
+    tokens = response.json()["data"]
+    access_token = tokens["access"]
+    refresh_token = tokens["refresh"]
+
+    # Call the logout endpoint
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    logout_response = api_client.post("/api/auth/logout/", {"refresh": refresh_token})
+
+    assert logout_response.status_code == 200
+    assert logout_response.json()["message"] == "User logged out successfully"
+
+    # Verify the refresh token is now blacklisted and cannot be used
+    refresh_attempt_response = api_client.post(
+        "/api/auth/refresh/", {"refresh": refresh_token}
+    )
+
+    assert refresh_attempt_response.status_code == 401
+    assert "blacklisted" in refresh_attempt_response.json()["errors"]["detail"]
+
+
+@pytest.mark.django_db
+def test_user_logout_api_fail_with_missing_refresh_token(
+    api_client: APIClient, user_factory: Callable[..., User]
+) -> None:
+    """Test that a user cannot log out without a refresh token."""
+
+    user_account = user_factory(password="Str0ngP@ss!")
+
+    login_data = {
+        "email": user_account.email,
+        "password": "Str0ngP@ss!",
+    }
+
+    response = api_client.post("/api/auth/login/", login_data)
+    assert response.status_code == 200
+    tokens = response.json()["data"]
+    access_token = tokens["access"]
+
+    # Call the logout endpoint
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    logout_response = api_client.post("/api/auth/logout/")
+
+    assert logout_response.status_code == 400
+    logout_response_json = logout_response.json()
+    assert logout_response_json["status"] == "error"
+    assert logout_response_json["message"] == "User logout failed"
+    assert "Refresh token is required" in logout_response_json["errors"]["detail"]
+
+
+@pytest.mark.django_db
+def test_user_logout_api_fail_with_invalid_refresh_token(
+    api_client: APIClient, user_factory: Callable[..., User]
+) -> None:
+    """Test that a user cannot log out with an invalid refresh token."""
+
+    user_account = user_factory(password="Str0ngP@ss!")
+
+    login_data = {
+        "email": user_account.email,
+        "password": "Str0ngP@ss!",
+    }
+
+    response = api_client.post("/api/auth/login/", login_data)
+    assert response.status_code == 200
+    tokens = response.json()["data"]
+    access_token = tokens["access"]
+
+    # Call the logout endpoint
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    logout_response = api_client.post("/api/auth/logout/", {"refresh": "invalid_token"})
+
+    assert logout_response.status_code == 400
+    logout_response_json = logout_response.json()
+    assert logout_response_json["status"] == "error"
+    assert logout_response_json["message"] == "User logout failed"
+    assert "Token is invalid" in logout_response_json["errors"]["detail"]
