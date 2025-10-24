@@ -7,6 +7,7 @@ from django.contrib.auth.models import AbstractBaseUser
 from django.contrib.auth.models import BaseUserManager
 from django.contrib.auth.models import PermissionsMixin
 from django.db import models
+from django.utils.timesince import timesince
 
 
 class CustomUserManager(BaseUserManager):
@@ -57,6 +58,11 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel):
     email_verified = models.BooleanField(default=False)
     email_notification_enabled = models.BooleanField(default=False)
     sms_notification_enabled = models.BooleanField(default=False)
+
+    @property
+    def since_joined(self) -> str:
+        """Return a human-readable string of how long ago the user joined."""
+        return f"{timesince(self.created_at)} ago"
 
     objects = CustomUserManager()
 
