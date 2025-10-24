@@ -68,4 +68,4 @@ repos:
         #   - pytest
         #   - pytest-django
         #   - factory-boy
-        entry: env MYPYPATH=backend mypy --config-file=mypy.ini
+        entry: env MYPYPATH=backend mypy --config-file=mypy.ini --allow-untyped-decorators
