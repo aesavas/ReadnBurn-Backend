@@ -3,6 +3,7 @@ from typing import Callable
 import pytest
 from accounts.models import User
 from accounts.serializers import UserLoginSerializer
+from accounts.serializers import UserProfileSerializer
 from accounts.serializers import UserRegistrationSerializer
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.exceptions import ValidationError
@@ -192,6 +193,69 @@ def test_user_login_serializer_missing_field(user_factory: Callable[..., User]) 
         "email": user.email,
     }
     serializer = UserLoginSerializer(data=login_payload)
+
+    with pytest.raises(ValidationError):
+        serializer.is_valid(raise_exception=True)
+
+
+@pytest.mark.django_db
+def test_user_profile_serializer_view(user_account: User) -> None:
+    """Test user profile serializer view."""
+    serializer = UserProfileSerializer(instance=user_account)
+    assert "email" in serializer.data
+    assert "first_name" in serializer.data
+    assert "last_name" in serializer.data
+    assert "since_joined" in serializer.data
+    assert user_account.first_name == serializer.data["first_name"]
+    assert user_account.last_name == serializer.data["last_name"]
+    assert user_account.email == serializer.data["email"]
+
+
+@pytest.mark.django_db
+def test_user_profile_serializer_update(user_account: User) -> None:
+    """Test user profile serializer update."""
+    profile_payload = {
+        "email": user_account.email,
+        "first_name": "New",
+        "last_name": "User",
+    }
+    serializer = UserProfileSerializer(instance=user_account, data=profile_payload)
+
+    assert serializer.is_valid(raise_exception=True)
+    serializer.save()
+
+    validated_data = serializer.validated_data
+    assert "email" in validated_data
+    assert "first_name" in validated_data
+    assert "last_name" in validated_data
+
+    user_account.refresh_from_db()
+    assert user_account.first_name == validated_data["first_name"]
+    assert user_account.last_name == validated_data["last_name"]
+    assert user_account.email == validated_data["email"]
+
+
+@pytest.mark.django_db
+def test_user_profile_serializer_update_invalid_email(user_account: User) -> None:
+    """Test user profile serializer update invalid email."""
+    profile_payload = {
+        "email": "invalid_email",
+    }
+    serializer = UserProfileSerializer(instance=user_account, data=profile_payload)
+
+    with pytest.raises(ValidationError):
+        serializer.is_valid(raise_exception=True)
+
+
+@pytest.mark.django_db
+def test_user_profile_serializer_update_invalid_name(user_account: User) -> None:
+    """Test user profile serializer update invalid name."""
+    profile_payload = {
+        "email": user_account.email,
+        "first_name": "A",
+        "last_name": "A",
+    }
+    serializer = UserProfileSerializer(instance=user_account, data=profile_payload)
 
     with pytest.raises(ValidationError):
         serializer.is_valid(raise_exception=True)

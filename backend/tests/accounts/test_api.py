@@ -414,3 +414,130 @@ def test_user_logout_api_fail_with_invalid_refresh_token(
     assert logout_response_json["status"] == "error"
     assert logout_response_json["message"] == "User logout failed"
     assert "Token is invalid" in logout_response_json["errors"]["detail"]
+
+
+@pytest.mark.django_db
+def test_user_profile_api_get_successful(
+    auth_user_api_client: APIClient, user_account: User
+) -> None:
+    """Test that a user can successfully get their profile."""
+    response = auth_user_api_client.get("/api/user/profile/")
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "User profile retrieved successfully"
+    assert response_json["data"]["email"] == user_account.email
+    assert response_json["data"]["first_name"] == user_account.first_name
+    assert response_json["data"]["last_name"] == user_account.last_name
+
+
+@pytest.mark.django_db
+def test_user_profile_api_put_successful_without_email(
+    auth_user_api_client: APIClient, user_account: User
+) -> None:
+    """Test that a user can successfully update their profile."""
+    payload = {
+        "first_name": "NewFirstName",
+        "last_name": "NewLastName",
+    }
+    response = auth_user_api_client.put("/api/user/profile/", payload)
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "User profile updated successfully"
+    assert response_json["data"]["first_name"] == payload["first_name"]
+    assert response_json["data"]["last_name"] == payload["last_name"]
+
+
+@pytest.mark.django_db
+def test_user_profile_api_put_successful_with_email(
+    auth_user_api_client: APIClient, user_account: User
+) -> None:
+    """Test that a user can successfully update their profile."""
+    payload = {
+        "email": user_account.email,
+        "first_name": "NewFirstName",
+        "last_name": "NewLastName",
+    }
+    response = auth_user_api_client.put("/api/user/profile/", payload)
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "User profile updated successfully"
+    assert response_json["data"]["first_name"] == payload["first_name"]
+    assert response_json["data"]["last_name"] == payload["last_name"]
+
+
+@pytest.mark.django_db
+def test_user_profile_api_put_fail_with_invalid_email(
+    auth_user_api_client: APIClient,
+) -> None:
+    """Test that a user cannot update their profile with an invalid email."""
+    payload = {
+        "email": "invalid_email",
+        "first_name": "NewFirstName",
+        "last_name": "NewLastName",
+    }
+    response = auth_user_api_client.put("/api/user/profile/", payload)
+    assert response.status_code == 400
+    response_json = response.json()
+    assert response_json["status"] == "error"
+    assert response_json["message"] == "User profile update failed"
+    assert "Enter a valid email address." in response_json["errors"]["email"][0]
+
+
+@pytest.mark.django_db
+def test_user_profile_api_put_fail_with_invalid_first_name(
+    auth_user_api_client: APIClient, user_account: User
+) -> None:
+    """Test that a user cannot update their profile with an invalid first name."""
+    payload = {
+        "email": user_account.email,
+        "first_name": "A",
+        "last_name": "NewLastName",
+    }
+    response = auth_user_api_client.put("/api/user/profile/", payload)
+    assert response.status_code == 400
+    response_json = response.json()
+    assert response_json["status"] == "error"
+    assert response_json["message"] == "User profile update failed"
+    assert (
+        "Ensure this field has at least 2 characters."
+        in response_json["errors"]["first_name"][0]
+    )
+
+
+@pytest.mark.django_db
+def test_user_profile_api_patch_successful(
+    auth_user_api_client: APIClient, user_account: User
+) -> None:
+    """Test that a user can successfully update their profile."""
+    payload = {
+        "first_name": "NewFirstName",
+    }
+    response = auth_user_api_client.patch("/api/user/profile/", payload)
+    assert response.status_code == 200
+    response_json = response.json()
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "User profile updated successfully"
+    assert response_json["data"]["first_name"] == payload["first_name"]
+    assert response_json["data"]["last_name"] == user_account.last_name
+
+
+@pytest.mark.django_db
+def test_user_profile_api_patch_fail_with_invalid_first_name(
+    auth_user_api_client: APIClient, user_account: User
+) -> None:
+    """Test that a user cannot update their profile with an invalid first name."""
+    payload = {
+        "first_name": "A",
+    }
+    response = auth_user_api_client.patch("/api/user/profile/", payload)
+    assert response.status_code == 400
+    response_json = response.json()
+    assert response_json["status"] == "error"
+    assert response_json["message"] == "User profile update failed"
+    assert (
+        "Ensure this field has at least 2 characters."
+        in response_json["errors"]["first_name"][0]
+    )
