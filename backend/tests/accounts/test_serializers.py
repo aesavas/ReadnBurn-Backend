@@ -1,6 +1,11 @@
+from typing import Callable
+
 import pytest
 from accounts.models import User
+from accounts.serializers import UserLoginSerializer
 from accounts.serializers import UserRegistrationSerializer
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import ValidationError
 
 
 @pytest.mark.django_db
@@ -122,3 +127,71 @@ def test_user_registeration_serializer_notification_default_values() -> None:
 
     assert user.email_notification_enabled is False
     assert user.sms_notification_enabled is False
+
+
+@pytest.mark.django_db
+def test_user_login_serializer(user_factory: Callable[..., User]) -> None:
+    """Test user login serializer with valid credentials."""
+    user = user_factory(password="Str0ngP@ss!")
+
+    login_payload = {
+        "email": user.email,
+        "password": "Str0ngP@ss!",
+    }
+    serializer = UserLoginSerializer(data=login_payload)
+
+    assert serializer.is_valid(raise_exception=True)
+
+    validated_data = serializer.validated_data
+    assert "access" in validated_data
+    assert "refresh" in validated_data
+    assert "user" in validated_data
+    assert validated_data["user"]["email"] == user.email
+
+
+@pytest.mark.django_db
+def test_user_login_serializer_inactive_user(user_factory: Callable[..., User]) -> None:
+    """Test that an inactive user cannot log in."""
+    user = user_factory(password="Str0ngP@ss!", is_active=False)
+
+    login_payload = {
+        "email": user.email,
+        "password": "Str0ngP@ss!",
+    }
+    serializer = UserLoginSerializer(data=login_payload)
+
+    with pytest.raises(AuthenticationFailed) as excinfo:
+        serializer.is_valid(raise_exception=True)
+
+    assert "No active account found" in str(excinfo.value)
+
+
+@pytest.mark.django_db
+def test_user_login_serializer_wrong_password(
+    user_factory: Callable[..., User],
+) -> None:
+    """Test that an user with wrong password cannot log in."""
+    user = user_factory(password="Str0ngP@ss!")
+
+    login_payload = {
+        "email": user.email,
+        "password": "WrongP@ss!",
+    }
+    serializer = UserLoginSerializer(data=login_payload)
+
+    with pytest.raises(AuthenticationFailed):
+        serializer.is_valid(raise_exception=True)
+
+
+@pytest.mark.django_db
+def test_user_login_serializer_missing_field(user_factory: Callable[..., User]) -> None:
+    """Test that an user with missing field cannot log in."""
+    user = user_factory(password="Str0ngP@ss!")
+
+    login_payload = {
+        "email": user.email,
+    }
+    serializer = UserLoginSerializer(data=login_payload)
+
+    with pytest.raises(ValidationError):
+        serializer.is_valid(raise_exception=True)
