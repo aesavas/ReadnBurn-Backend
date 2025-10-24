@@ -40,18 +40,25 @@ repos:
             ^backend/tests/|
             /migrations/
           )
-        args: [--strict]
+        args:
+          - --install-types
+          - --non-interactive
+          - --no-namespace-packages
         # additional_dependencies:
         #   - django
         #   - djangorestframework
         #   - django-stubs
         #   - djangorestframework-stubs
         #   - python-decouple-stubs
-        entry: env MYPYPATH=backend mypy
+        entry: env MYPYPATH=backend mypy --config-file=mypy.ini
 
       - id: mypy
         name: mypy-tests
         files: ^backend/tests/
+        args:
+          - --install-types
+          - --non-interactive
+          - --no-namespace-packages
         # additional_dependencies:
         #   - django
         #   - djangorestframework
@@ -61,4 +68,4 @@ repos:
         #   - pytest
         #   - pytest-django
         #   - factory-boy
-        entry: env MYPYPATH=backend mypy
+        entry: env MYPYPATH=backend mypy --config-file=mypy.ini
