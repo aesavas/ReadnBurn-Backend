@@ -58,7 +58,7 @@ class UserLoginView(APIView):
                 {
                     "status": "error",
                     "message": "User login failed",
-                    "errors": {"detail": e.detail},
+                    "errors": e.args[0],
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -67,7 +67,7 @@ class UserLoginView(APIView):
                 {
                     "status": "error",
                     "message": "User login failed",
-                    "errors": {"detail": e.detail},
+                    "errors": e.args[0],
                 },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
@@ -96,7 +96,7 @@ class UserTokenRefreshView(APIView):
                 {
                     "status": "error",
                     "message": "Token refresh failed",
-                    "errors": {"detail": str(e)},
+                    "errors": e.args[0],
                 },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
@@ -105,7 +105,7 @@ class UserTokenRefreshView(APIView):
                 {
                     "status": "error",
                     "message": "Token refresh failed",
-                    "errors": {"detail": e.detail},
+                    "errors": e.args[0],
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -133,7 +133,7 @@ class UserLogoutView(APIView):
                     {
                         "status": "error",
                         "message": "User logout failed",
-                        "errors": {"detail": "Refresh token is required"},
+                        "errors": "Refresh token is required",
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
@@ -153,7 +153,7 @@ class UserLogoutView(APIView):
                 {
                     "status": "error",
                     "message": "User logout failed",
-                    "errors": {"detail": str(e)},
+                    "errors": e.args[0],
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
