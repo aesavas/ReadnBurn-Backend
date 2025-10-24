@@ -184,7 +184,7 @@ def test_user_login_api_fail_with_missing_field(
     assert response.status_code == 400
     assert response_json["status"] == "error"
     assert response_json["message"] == "User login failed"
-    assert "password" in response_json["errors"]["detail"]
+    assert "password" in response_json["errors"]
 
 
 @pytest.mark.django_db
@@ -249,8 +249,7 @@ def test_user_refresh_token_api_fail_with_invalid_token(
     response_json = refresh_response.json()
     assert response_json["status"] == "error"
     assert response_json["message"] == "Token refresh failed"
-    assert "detail" in response_json["errors"]
-    assert "Token is invalid" in response_json["errors"]["detail"]
+    assert "Token is invalid" in response_json["errors"]
 
 
 @pytest.mark.django_db
@@ -283,8 +282,7 @@ def test_user_refresh_token_api_fail_with_expired_token_from_view(
         response_json = refresh_response.json()
         assert response_json["status"] == "error"
         assert response_json["message"] == "Token refresh failed"
-        assert "detail" in response_json["errors"]
-        assert "Token is expired" in response_json["errors"]["detail"]
+        assert "Token is expired" in response_json["errors"]
 
 
 @pytest.mark.django_db
@@ -355,7 +353,7 @@ def test_user_logout_api_successful(
     )
 
     assert refresh_attempt_response.status_code == 401
-    assert "blacklisted" in refresh_attempt_response.json()["errors"]["detail"]
+    assert "blacklisted" in refresh_attempt_response.json()["errors"]
 
 
 @pytest.mark.django_db
@@ -384,7 +382,7 @@ def test_user_logout_api_fail_with_missing_refresh_token(
     logout_response_json = logout_response.json()
     assert logout_response_json["status"] == "error"
     assert logout_response_json["message"] == "User logout failed"
-    assert "Refresh token is required" in logout_response_json["errors"]["detail"]
+    assert "Refresh token is required" in logout_response_json["errors"]
 
 
 @pytest.mark.django_db
@@ -413,7 +411,7 @@ def test_user_logout_api_fail_with_invalid_refresh_token(
     logout_response_json = logout_response.json()
     assert logout_response_json["status"] == "error"
     assert logout_response_json["message"] == "User logout failed"
-    assert "Token is invalid" in logout_response_json["errors"]["detail"]
+    assert "Token is invalid" in logout_response_json["errors"]
 
 
 @pytest.mark.django_db
@@ -526,7 +524,7 @@ def test_user_profile_api_patch_successful(
 
 @pytest.mark.django_db
 def test_user_profile_api_patch_fail_with_invalid_first_name(
-    auth_user_api_client: APIClient, user_account: User
+    auth_user_api_client: APIClient,
 ) -> None:
     """Test that a user cannot update their profile with an invalid first name."""
     payload = {
