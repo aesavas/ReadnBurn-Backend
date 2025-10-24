@@ -1,9 +1,11 @@
 from typing import Any
 from typing import Dict
+from typing import TypedDict
 
 from accounts.models import User
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer[User]):
@@ -40,9 +42,44 @@ class UserRegistrationSerializer(serializers.ModelSerializer[User]):
         return attrs
 
     def create(self, validated_data: Dict[str, Any]) -> User:
-        password = validated_data.pop("password")
         validated_data.pop("password_confirm")
-        user = User(**validated_data)
-        user.set_password(password)
-        user.save()
-        return user
+        email = validated_data.pop("email")
+        password = validated_data.pop("password")
+        return User.objects.create_user(
+            email=email, password=password, **validated_data
+        )
+
+
+class UserData(TypedDict):
+    id: str
+    email: str
+    first_name: str
+    last_name: str
+    is_superuser: bool
+    is_staff: bool
+    email_verified: bool
+
+
+class UserLoginSerializer(TokenObtainPairSerializer):
+    def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
+        # Get the original data, which is Dict[str, str]
+        data: Dict[str, str] = super().validate(attrs)
+
+        # Create the user data payload
+        assert self.user is not None
+        assert isinstance(self.user, User)
+
+        user_data: UserData = {
+            "id": str(self.user.id),
+            "email": self.user.email,
+            "first_name": self.user.first_name,
+            "last_name": self.user.last_name,
+            "is_superuser": self.user.is_superuser,
+            "is_staff": self.user.is_staff,
+            "email_verified": self.user.email_verified,
+        }
+
+        return {
+            **data,
+            "user": user_data,
+        }
