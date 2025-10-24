@@ -36,7 +36,10 @@ repos:
       - id: mypy
         name: mypy-app
         files: ^backend/
-        exclude: ^backend/tests/
+        exclude: (?x)(
+            ^backend/tests/|
+            /migrations/
+          )
         args: [--strict]
         # additional_dependencies:
         #   - django
