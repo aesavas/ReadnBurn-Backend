@@ -1,4 +1,8 @@
+from typing import cast
+
+from accounts.models import User
 from accounts.serializers import UserLoginSerializer
+from accounts.serializers import UserProfileSerializer
 from accounts.serializers import UserRegistrationSerializer
 from rest_framework import permissions
 from rest_framework import status
@@ -153,3 +157,73 @@ class UserLogoutView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class UserProfileView(APIView):
+    """Retrieve or update the authenticated user's profile."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        serializer = UserProfileSerializer(user)
+        return Response(
+            {
+                "status": "success",
+                "message": "User profile retrieved successfully",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def put(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        # To allow update without email
+        data = request.data.copy()
+        if not data.get("email"):
+            data["email"] = user.email
+        try:
+            serializer = UserProfileSerializer(user, data=data)
+            serializer.is_valid(raise_exception=True)  # 400 Bad Request
+            serializer.save()
+        except ValidationError as e:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "User profile update failed",
+                    "errors": e.args[0],
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {
+                "status": "success",
+                "message": "User profile updated successfully",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def patch(self, request: Request) -> Response:
+        user = cast(User, request.user)
+        try:
+            serializer = UserProfileSerializer(user, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)  # 400 Bad Request
+            serializer.save()
+        except ValidationError as e:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "User profile update failed",
+                    "errors": e.args[0],
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {
+                "status": "success",
+                "message": "User profile updated successfully",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
