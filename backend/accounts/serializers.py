@@ -83,3 +83,34 @@ class UserLoginSerializer(TokenObtainPairSerializer):
             **data,
             "user": user_data,
         }
+
+
+class UserProfileSerializer(serializers.ModelSerializer[User]):
+    """Serializer for user profile data, for both viewing and updating."""
+
+    first_name = serializers.CharField(max_length=255, min_length=2)
+    last_name = serializers.CharField(max_length=255, min_length=2)
+
+    class Meta:
+        model = User
+        fields = (
+            "email",
+            "first_name",
+            "last_name",
+            "email_notification_enabled",
+            "sms_notification_enabled",
+            "since_joined",
+        )
+        read_only_fields = ("since_joined",)
+
+    def validate_email(self, value: str) -> str:
+        """Check that the email is unique, excluding the current user."""
+        # self.instance is the user object that is being updated.
+        if (
+            self.instance
+            and User.objects.filter(email__iexact=value)
+            .exclude(pk=self.instance.pk)
+            .exists()
+        ):
+            raise serializers.ValidationError({"email": "Email is already registered."})
+        return value
