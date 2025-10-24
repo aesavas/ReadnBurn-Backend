@@ -431,7 +431,7 @@ def test_user_profile_api_get_successful(
 
 @pytest.mark.django_db
 def test_user_profile_api_put_successful_without_email(
-    auth_user_api_client: APIClient, user_account: User
+    auth_user_api_client: APIClient,
 ) -> None:
     """Test that a user can successfully update their profile."""
     payload = {
@@ -539,3 +539,27 @@ def test_user_profile_api_patch_fail_with_invalid_first_name(
         "Ensure this field has at least 2 characters."
         in response_json["errors"]["first_name"][0]
     )
+
+
+@pytest.mark.django_db
+def test_user_logout_api_unauthorized(api_client: APIClient) -> None:
+    response = api_client.post("/api/auth/logout/")
+    assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_user_profile_api_get_unauthorized(api_client: APIClient) -> None:
+    response = api_client.get("/api/user/profile/")
+    assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_user_profile_api_put_unauthorized(api_client: APIClient) -> None:
+    response = api_client.put("/api/user/profile/")
+    assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_user_profile_api_patch_unauthorized(api_client: APIClient) -> None:
+    response = api_client.patch("/api/user/profile/")
+    assert response.status_code == 401
