@@ -2,13 +2,17 @@ from typing import Callable
 
 import pytest
 from accounts.models import User
+from confidential.models import Secret
 from pytest_factoryboy import register
 from rest_framework.test import APIClient
 from tests.accounts.factories import UserFactory
+from tests.confidential.factories import SecretFactory
 
 register(UserFactory)
+register(SecretFactory)
 
 UserFactoryCallable = Callable[..., User]
+SecretFactoryCallable = Callable[..., Secret]
 
 
 @pytest.fixture
