@@ -1,3 +1,5 @@
+from decouple import config
+
 from .settings import BASE_DIR
 from .settings import *  # noqa: F401,F403
 
@@ -10,3 +12,4 @@ DATABASES = {
 
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+TEST_ENCRYPTION_KEY = config("TEST_ENCRYPTION_KEY")
