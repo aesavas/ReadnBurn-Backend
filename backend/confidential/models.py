@@ -2,6 +2,7 @@
 import uuid
 
 from accounts.models import User
+from confidential.exceptions import SecretNotAvailableError
 from core.models import TimeStampedModel
 from django.db import models
 from django.utils import timezone
@@ -34,14 +35,19 @@ class Secret(TimeStampedModel):
 
     def mark_as_viewed(self) -> None:
         """Mark Secret as viewed"""
-        self.view_count += 1
-        self.viewed_at = timezone.now()
-        if self.view_count >= self.max_views:
-            self.soft_delete()
-        self.save()
+        if self.is_available:
+            self.view_count += 1
+            self.viewed_at = timezone.now()
+            if self.view_count >= self.max_views:
+                self.soft_delete()
+            self.save()
+        else:
+            raise SecretNotAvailableError("Secret is not available to be viewed.")
 
     def soft_delete(self) -> None:
         """Soft delete the secret"""
+        if self.is_deleted:
+            raise SecretNotAvailableError("Secret is already deleted.")
         self.is_deleted = True
         self.deleted_at = timezone.now()
         self.save()
