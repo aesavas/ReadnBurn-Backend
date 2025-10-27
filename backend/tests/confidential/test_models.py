@@ -1,9 +1,11 @@
 import pytest
 from accounts.models import User
 from confidential.exceptions import SecretNotAvailableError
+from confidential.models import SecretViewLog
 from core.encryption import decrypt_message
 from freezegun import freeze_time
 from tests.conftest import SecretFactoryCallable
+from tests.conftest import SecretViewLogFactoryCallable
 
 from backend.settings_test import TEST_ENCRYPTION_KEY
 
@@ -185,3 +187,53 @@ def test_secret_get_shareable_url(
     """Test secret get shareable url."""
     secret = secret_factory(creator=user_account)
     assert secret.get_shareable_url() == f"/secret/view/{secret.id}"
+
+
+@pytest.mark.django_db
+def test_secret_view_log(
+    user_account: User,
+    secret_factory: SecretFactoryCallable,
+    secret_view_log_factory: SecretViewLogFactoryCallable,
+) -> None:
+    """Test secret view log."""
+    secret = secret_factory(creator=user_account)
+    secret_view_log_factory(secret=secret)
+    secret.mark_as_viewed()
+    assert SecretViewLog.objects.count() == 1
+    svl = SecretViewLog.objects.first()
+    assert svl is not None
+    assert str(svl.secret.id) == secret.id
+    assert svl.viewed_at is not None
+    assert not svl.secret.is_available
+    assert svl.secret.view_count == 1
+
+
+@pytest.mark.django_db
+def test_secret_view_log_with_multiple_views(
+    user_account: User,
+    secret_factory: SecretFactoryCallable,
+    secret_view_log_factory: SecretViewLogFactoryCallable,
+) -> None:
+    """Test secret view log with multiple views."""
+    secret = secret_factory(creator=user_account, max_views=2)
+    secret_view_log_factory(secret=secret)
+    secret.mark_as_viewed()
+    assert SecretViewLog.objects.count() == 1
+    svl = SecretViewLog.objects.first()
+    assert svl is not None
+    assert str(svl.secret.id) == secret.id
+    assert svl.viewed_at is not None
+    assert svl.secret.is_available
+    assert svl.secret.view_count == 1
+
+    secret.mark_as_viewed()
+    secret_view_log_factory(secret=secret)
+    assert SecretViewLog.objects.count() == 2
+    svl = SecretViewLog.objects.last()
+    assert svl is not None
+    assert str(svl.secret.id) == secret.id
+    assert svl.viewed_at is not None
+    assert not svl.secret.is_available
+    assert svl.secret.view_count == 2
+
+    assert SecretViewLog.objects.filter(secret=secret).count() == 2
