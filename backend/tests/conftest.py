@@ -3,16 +3,20 @@ from typing import Callable
 import pytest
 from accounts.models import User
 from confidential.models import Secret
+from confidential.models import SecretViewLog
 from pytest_factoryboy import register
 from rest_framework.test import APIClient
 from tests.accounts.factories import UserFactory
 from tests.confidential.factories import SecretFactory
+from tests.confidential.factories import SecretViewLogFactory
 
 register(UserFactory)
 register(SecretFactory)
+register(SecretViewLogFactory)
 
 UserFactoryCallable = Callable[..., User]
 SecretFactoryCallable = Callable[..., Secret]
+SecretViewLogFactoryCallable = Callable[..., SecretViewLog]
 
 
 @pytest.fixture

@@ -2,6 +2,7 @@ from datetime import timedelta
 
 import factory
 from confidential.models import Secret
+from confidential.models import SecretViewLog
 from core.encryption import encrypt_message
 from django.utils import timezone
 from factory.django import DjangoModelFactory
@@ -33,3 +34,18 @@ class SecretFactory(DjangoModelFactory[Secret]):
     viewed_at = None
     is_deleted = False
     deleted_at = None
+
+
+class SecretViewLogFactory(DjangoModelFactory[SecretViewLog]):
+    class Meta:
+        model = SecretViewLog
+
+    id = factory.Faker("uuid4")
+    secret = factory.SubFactory(SecretFactory)
+    secret_uuid = factory.LazyAttribute(lambda o: o.secret.id)
+    creator = factory.LazyAttribute(lambda o: o.secret.creator)
+    viewed_at = factory.LazyFunction(lambda: timezone.now())
+    ip_address = factory.Faker("ipv4")
+    user_agent = factory.Faker("user_agent")
+    success = True
+    failure_reason = ""
