@@ -44,7 +44,8 @@ repos:
           - --install-types
           - --non-interactive
           - --no-namespace-packages
-        # additional_dependencies:
+        additional_dependencies:
+          - cryptography
         #   - django
         #   - djangorestframework
         #   - django-stubs
@@ -59,7 +60,8 @@ repos:
           - --install-types
           - --non-interactive
           - --no-namespace-packages
-        # additional_dependencies:
+        additional_dependencies:
+          - cryptography
         #   - django
         #   - djangorestframework
         #   - django-stubs
