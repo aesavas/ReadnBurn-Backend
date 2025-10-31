@@ -1,6 +1,7 @@
 from typing import Any
 from typing import Dict
 
+from confidential.exceptions import SecretAlreadyDeletedError
 from confidential.models import Secret
 from django.utils import timezone
 from rest_framework import serializers
@@ -47,14 +48,10 @@ class SecretCreateSerializer(serializers.ModelSerializer[Secret]):
 class SecretResponseSerializer(serializers.ModelSerializer[Secret]):
     """Serializer for secret data."""
 
-    # TODO: fields can be change
-
     class Meta:
         model = Secret
         fields = (
             "id",
-            "creator",
-            "encrypted_content",
             "max_views",
             "view_count",
             "expires_at",
@@ -62,16 +59,32 @@ class SecretResponseSerializer(serializers.ModelSerializer[Secret]):
             "is_deleted",
             "deleted_at",
             "get_shareable_url",
+            "is_expired",
         )
-        read_only_fields = (
-            "id",
-            "creator",
-            "encrypted_content",
-            "max_views",
-            "view_count",
-            "expires_at",
-            "viewed_at",
-            "is_deleted",
-            "deleted_at",
-            "get_shareable_url",
-        )
+        read_only_fields = fields
+
+    def to_representation(self, instance: Secret) -> dict[str, Any]:
+        data = super().to_representation(instance)
+
+        output: dict[str, Any] = {
+            "id": data["id"],
+            "max_views": data["max_views"],
+        }
+
+        if instance.is_available:
+            return {
+                **output,
+                "view_count": data["view_count"],
+                "expires_at": data["expires_at"],
+                "get_shareable_url": data["get_shareable_url"],
+            }
+
+        elif instance.is_deleted:
+            raise SecretAlreadyDeletedError("Secret is already deleted.")
+
+        return {
+            **output,
+            "viewed_at": data["viewed_at"],
+            "is_deleted": data["is_deleted"],
+            "deleted_at": data["deleted_at"],
+        }
