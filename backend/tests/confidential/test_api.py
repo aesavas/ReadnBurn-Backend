@@ -271,3 +271,68 @@ def test_secret_retrieve_api_secret_deleted(
 
     assert response_json["status"] == "error"
     assert response_json["message"] == "Secret has already been viewed or deleted"
+
+
+@pytest.mark.django_db
+def test_secret_detail_api(
+    auth_user_api_client: APIClient,
+    secret_factory: SecretFactoryCallable,
+) -> None:
+    """Test secret detail API."""
+    my_secret = "ReadnBurn"
+    secret = secret_factory(plain_content=my_secret)
+    secret.refresh_from_db()
+
+    response = auth_user_api_client.get(f"/api/secrets/detail/{secret.id}")
+
+    assert response.status_code == 200
+    response_json = response.json()
+
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "Secret retrieved successfully"
+    assert response_json["data"]["id"] == str(secret.id)
+    assert response_json["data"]["max_views"] == secret.max_views
+    assert response_json["data"]["view_count"] == secret.view_count
+    assert response_json["data"]["expires_at"] == cast(
+        datetime, secret.expires_at
+    ).isoformat().replace("+00:00", "Z")
+    assert response_json["data"]["get_shareable_url"] == secret.get_shareable_url()
+
+
+@pytest.mark.django_db
+def test_secret_detail_api_secret_does_not_exist(
+    auth_user_api_client: APIClient,
+) -> None:
+    """Test secret detail API with secret does not exist."""
+    response = auth_user_api_client.get(f"/api/secrets/detail/{uuid.uuid4()}")
+
+    assert response.status_code == 404
+    response_json = response.json()
+
+    assert response_json["status"] == "error"
+    assert response_json["message"] == "Secret not found"
+
+
+@pytest.mark.django_db
+def test_secret_detail_api_secret_deleted(
+    auth_user_api_client: APIClient,
+    secret_factory: SecretFactoryCallable,
+) -> None:
+    """Test secret detail API with secret deleted."""
+    my_secret = "ReadnBurn"
+    secret = secret_factory(plain_content=my_secret)
+    secret.refresh_from_db()
+
+    secret.soft_delete()  # Soft delete the secret
+    secret.refresh_from_db()
+
+    assert secret.is_deleted
+    assert secret.deleted_at is not None
+
+    response = auth_user_api_client.get(f"/api/secrets/detail/{secret.id}")
+
+    assert response.status_code == 410
+    response_json = response.json()
+
+    assert response_json["status"] == "error"
+    assert response_json["message"] == "Secret has already been deleted"
