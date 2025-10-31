@@ -76,9 +76,9 @@ class SecretService:
             SecretAlreadyViewedError,
         ) as e:
             failure_map: dict[Type[Exception], str] = {
-                SecretExpiredError: SecretViewLog.FailureReason.EXPIRED.value,  # type: ignore
-                SecretAlreadyDeletedError: SecretViewLog.FailureReason.DELETED.value,  # type: ignore
-                SecretAlreadyViewedError: SecretViewLog.FailureReason.ALREADY_VIEWED.value,  # type: ignore
+                SecretExpiredError: SecretViewLog.FailureReason.EXPIRED.value,
+                SecretAlreadyDeletedError: SecretViewLog.FailureReason.DELETED.value,
+                SecretAlreadyViewedError: SecretViewLog.FailureReason.ALREADY_VIEWED.value,
             }
             SecretService._create_secret_view_log(
                 secret=secret,
