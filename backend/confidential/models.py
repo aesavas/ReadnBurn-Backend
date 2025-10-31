@@ -1,5 +1,6 @@
 # mypy: ignore-errors
 import uuid
+from enum import Enum
 
 from accounts.models import User
 from confidential.exceptions import SecretAlreadyDeletedError
@@ -72,11 +73,11 @@ class Secret(TimeStampedModel):
 
 
 class SecretViewLog(TimeStampedModel):
-    class FailureReason(models.TextChoices):
-        ALREADY_VIEWED = "already_viewed", "Already Viewed"
-        EXPIRED = "expired", "Expired"
-        NOT_FOUND = "not_found", "Not Found"
-        DELETED = "deleted", "Secret Deleted"
+    class FailureReason(Enum):
+        ALREADY_VIEWED = "already_viewed"
+        EXPIRED = "expired"
+        NOT_FOUND = "not_found"
+        DELETED = "deleted"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     secret = models.ForeignKey(Secret, on_delete=models.SET_NULL, null=True)
@@ -105,7 +106,10 @@ class SecretViewLog(TimeStampedModel):
         max_length=50,
         blank=True,
         default="",
-        choices=FailureReason.choices,
+        choices=[
+            (reason.value, reason.name.replace("_", " ").title())
+            for reason in FailureReason
+        ],
     )
 
     class Meta:
