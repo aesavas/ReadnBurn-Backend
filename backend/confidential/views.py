@@ -6,6 +6,7 @@ from confidential.exceptions import SecretAlreadyDeletedError
 from confidential.exceptions import SecretAlreadyViewedError
 from confidential.exceptions import SecretDoesNotExistError
 from confidential.exceptions import SecretExpiredError
+from confidential.models import Secret
 from confidential.serializers import SecretCreateSerializer
 from confidential.serializers import SecretResponseSerializer
 from confidential.services import DEFAULT_MAX_VIEWS
@@ -108,6 +109,46 @@ class SecretRetrieveView(APIView):
             )
         except Exception:
             # 500 - Unexpected server error
+            return Response(
+                {
+                    "status": "error",
+                    "message": "An unexpected error occurred",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class SecretDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request, secret_id: UUID) -> Response:
+        try:
+            secret = Secret.objects.get(id=secret_id)
+            return Response(
+                {
+                    "status": "success",
+                    "message": "Secret retrieved successfully",
+                    "data": SecretResponseSerializer(secret).data,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Secret.DoesNotExist:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Secret not found",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except SecretAlreadyDeletedError:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Secret has already been deleted",
+                },
+                status=status.HTTP_410_GONE,
+            )
+        except Exception:
             return Response(
                 {
                     "status": "error",
