@@ -2,6 +2,9 @@
 import uuid
 
 from accounts.models import User
+from confidential.exceptions import SecretAlreadyDeletedError
+from confidential.exceptions import SecretAlreadyViewedError
+from confidential.exceptions import SecretExpiredError
 from confidential.exceptions import SecretNotAvailableError
 from core.models import TimeStampedModel
 from django.db import models
@@ -41,13 +44,19 @@ class Secret(TimeStampedModel):
             if self.view_count >= self.max_views:
                 self.soft_delete()
             self.save()
+        elif self.is_expired:
+            raise SecretExpiredError("Secret is expired.")
+        elif self.is_deleted:
+            raise SecretAlreadyDeletedError("Secret is already deleted.")
+        elif self.view_count >= self.max_views:
+            raise SecretAlreadyViewedError("Secret is already viewed.")
         else:
             raise SecretNotAvailableError("Secret is not available to be viewed.")
 
     def soft_delete(self) -> None:
         """Soft delete the secret"""
         if self.is_deleted:
-            raise SecretNotAvailableError("Secret is already deleted.")
+            raise SecretAlreadyDeletedError("Secret is already deleted.")
         self.is_deleted = True
         self.deleted_at = timezone.now()
         self.save()
