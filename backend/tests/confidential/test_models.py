@@ -63,9 +63,7 @@ def test_secret_message_view_expired(
     assert secret.is_available
 
     with freeze_time("2025-01-02 00:00:00"):
-        with pytest.raises(
-            SecretNotAvailableError, match="Secret is not available to be viewed."
-        ):
+        with pytest.raises(SecretNotAvailableError, match="Secret is expired."):
             secret.mark_as_viewed()
         assert secret.is_expired
         assert not secret.is_available  # type: ignore [unreachable]
