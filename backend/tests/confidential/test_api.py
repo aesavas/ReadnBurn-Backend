@@ -9,15 +9,12 @@ from confidential.models import Secret
 from confidential.models import SecretViewLog
 from django.utils import timezone
 from freezegun import freeze_time
-from pytest import MonkeyPatch
 from rest_framework.test import APIClient
 from tests.conftest import SecretFactoryCallable
 
 
 @pytest.mark.django_db
-def test_secret_create_api(
-    auth_user_api_client: APIClient, monkeypatch: MonkeyPatch
-) -> None:
+def test_secret_create_api(auth_user_api_client: APIClient) -> None:
     """Test secret creation API."""
     payload = {
         "content": "Secret content",
@@ -38,9 +35,7 @@ def test_secret_create_api(
 
 
 @pytest.mark.django_db
-def test_secret_create_api_invalid_content(
-    auth_user_api_client: APIClient, monkeypatch: MonkeyPatch
-) -> None:
+def test_secret_create_api_invalid_content(auth_user_api_client: APIClient) -> None:
     """Test secret creation API with invalid content."""
     payload = {
         "content": "",
@@ -58,9 +53,7 @@ def test_secret_create_api_invalid_content(
 
 
 @pytest.mark.django_db
-def test_secret_create_api_missing_content(
-    auth_user_api_client: APIClient, monkeypatch: MonkeyPatch
-) -> None:
+def test_secret_create_api_missing_content(auth_user_api_client: APIClient) -> None:
     """Test secret creation API with missing content."""
     payload = {
         "expires_at": timezone.now() + timedelta(days=1),
@@ -77,9 +70,7 @@ def test_secret_create_api_missing_content(
 
 
 @pytest.mark.django_db
-def test_secret_create_api_invalid_expires_at(
-    auth_user_api_client: APIClient, monkeypatch: MonkeyPatch
-) -> None:
+def test_secret_create_api_invalid_expires_at(auth_user_api_client: APIClient) -> None:
     """Test secret creation API with invalid expires at."""
     payload = {
         "content": "Secret content",
@@ -97,9 +88,7 @@ def test_secret_create_api_invalid_expires_at(
 
 
 @pytest.mark.django_db
-def test_secret_create_api_missing_max_views(
-    auth_user_api_client: APIClient, monkeypatch: MonkeyPatch
-) -> None:
+def test_secret_create_api_missing_max_views(auth_user_api_client: APIClient) -> None:
     """Test secret creation API with missing max views."""
     payload = {
         "content": "Secret content",
@@ -116,9 +105,7 @@ def test_secret_create_api_missing_max_views(
 
 
 @pytest.mark.django_db
-def test_secret_create_api_unauthorized(
-    api_client: APIClient, monkeypatch: MonkeyPatch
-) -> None:
+def test_secret_create_api_unauthorized(api_client: APIClient) -> None:
     """Test secret creation API with unauthorized user."""
     payload = {
         "content": "Secret content",
