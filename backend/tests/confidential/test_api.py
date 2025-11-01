@@ -4,6 +4,7 @@ from datetime import timedelta
 from typing import cast
 
 import pytest
+from accounts.models import User
 from confidential.models import Secret
 from confidential.models import SecretViewLog
 from django.utils import timezone
@@ -314,3 +315,101 @@ def test_secret_detail_api_secret_deleted(
 
     assert response_json["status"] == "error"
     assert response_json["message"] == "Secret has already been deleted"
+
+
+@pytest.mark.django_db
+def test_secret_delete_api(
+    api_client: APIClient,
+    user_account: User,
+    secret_factory: SecretFactoryCallable,
+) -> None:
+    """Test secret delete API."""
+    api_client.force_authenticate(user=user_account)
+    my_secret = "ReadnBurn"
+    secret = secret_factory(plain_content=my_secret, creator=user_account)
+    secret.refresh_from_db()
+
+    response = api_client.delete(f"/api/secrets/delete/{secret.id}")
+    secret.refresh_from_db()
+
+    assert response.status_code == 200
+    response_json = response.json()
+
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "Secret deleted successfully"
+    assert secret.is_deleted
+    assert secret.deleted_at is not None
+    assert Secret.objects.filter(id=secret.id).exists() is True  # proof of soft delete
+
+
+@pytest.mark.django_db
+def test_secret_delete_api_secret_does_not_exist(
+    api_client: APIClient,
+    user_account: User,
+) -> None:
+    api_client.force_authenticate(user=user_account)
+    response = api_client.delete(f"/api/secrets/delete/{uuid.uuid4()}")
+
+    assert response.status_code == 404
+    response_json = response.json()
+
+    assert response_json["status"] == "error"
+    assert response_json["message"] == "Secret not found"
+
+
+@pytest.mark.django_db
+def test_secret_delete_api_secret_already_deleted(
+    api_client: APIClient,
+    user_account: User,
+    secret_factory: SecretFactoryCallable,
+) -> None:
+    api_client.force_authenticate(user=user_account)
+    my_secret = "ReadnBurn"
+    secret = secret_factory(plain_content=my_secret, creator=user_account)
+    secret.refresh_from_db()
+
+    secret.soft_delete()  # Soft delete the secret
+    secret.refresh_from_db()
+
+    assert secret.is_deleted
+    assert secret.deleted_at is not None
+
+    response = api_client.delete(f"/api/secrets/delete/{secret.id}")
+    secret.refresh_from_db()
+
+    assert response.status_code == 410
+    response_json = response.json()
+
+    assert response_json["status"] == "error"
+    assert response_json["message"] == "Secret has already been deleted"
+
+
+@pytest.mark.django_db
+def test_secret_delete_api_secret_not_owner(
+    api_client: APIClient,
+    user_account: User,
+    secret_factory: SecretFactoryCallable,
+) -> None:
+    api_client.force_authenticate(user=user_account)
+    my_secret = "ReadnBurn"
+    secret = secret_factory(plain_content=my_secret)
+    secret.refresh_from_db()
+
+    response = api_client.delete(f"/api/secrets/delete/{secret.id}")
+    secret.refresh_from_db()
+
+    assert response.status_code == 404
+    response_json = response.json()
+
+    assert response_json["status"] == "error"
+    assert response_json["message"] == "Secret not found"
+    assert not secret.is_deleted
+    assert secret.deleted_at is None
+    assert Secret.objects.filter(id=secret.id).exists() is True  # proof of soft delete
+
+
+@pytest.mark.django_db
+def test_secret_delete_api_unauthorized(api_client: APIClient) -> None:
+    response = api_client.delete(f"/api/secrets/delete/{uuid.uuid4()}")
+
+    assert response.status_code == 401
