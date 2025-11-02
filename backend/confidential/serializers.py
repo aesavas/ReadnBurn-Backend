@@ -1,7 +1,6 @@
 from typing import Any
 from typing import Dict
 
-from confidential.exceptions import SecretAlreadyDeletedError
 from confidential.models import Secret
 from django.utils import timezone
 from rest_framework import serializers
@@ -56,8 +55,6 @@ class SecretResponseSerializer(serializers.ModelSerializer[Secret]):
             "view_count",
             "expires_at",
             "viewed_at",
-            "is_deleted",
-            "deleted_at",
             "get_shareable_url",
             "is_expired",
         )
@@ -66,25 +63,16 @@ class SecretResponseSerializer(serializers.ModelSerializer[Secret]):
     def to_representation(self, instance: Secret) -> dict[str, Any]:
         data = super().to_representation(instance)
 
-        output: dict[str, Any] = {
-            "id": data["id"],
-            "max_views": data["max_views"],
-        }
-
-        if instance.is_available:
+        if not instance.is_deleted:
             return {
-                **output,
+                "id": data["id"],
+                "max_views": data["max_views"],
                 "view_count": data["view_count"],
                 "expires_at": data["expires_at"],
                 "get_shareable_url": data["get_shareable_url"],
+                "viewed_at": data["viewed_at"],
+                "is_expired": data["is_expired"],
             }
 
-        elif instance.is_deleted:
-            raise SecretAlreadyDeletedError("Secret is already deleted.")
-
-        return {
-            **output,
-            "viewed_at": data["viewed_at"],
-            "is_deleted": data["is_deleted"],
-            "deleted_at": data["deleted_at"],
-        }
+        # Return empty dict for deleted secrets (will be filtered out in views)
+        return {}
