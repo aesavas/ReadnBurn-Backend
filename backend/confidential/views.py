@@ -124,6 +124,8 @@ class SecretDetailView(APIView):
     def get(self, request: Request, secret_id: UUID) -> Response:
         try:
             secret = Secret.objects.get(id=secret_id)
+            if secret.is_deleted:
+                raise SecretAlreadyDeletedError("Secret is already deleted.")
             return Response(
                 {
                     "status": "success",
