@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     "core",
     "accounts",
     "confidential",
+    "analytics",
 ]
 
 MIDDLEWARE = [
