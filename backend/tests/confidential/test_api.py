@@ -10,6 +10,8 @@ from confidential.models import SecretViewLog
 from django.utils import timezone
 from freezegun import freeze_time
 from rest_framework.test import APIClient
+from tests.confidential.factories import SecretFactory
+from tests.confidential.factories import UserFactory
 from tests.conftest import SecretFactoryCallable
 
 
@@ -400,3 +402,215 @@ def test_secret_delete_api_unauthorized(api_client: APIClient) -> None:
     response = api_client.delete(f"/api/secrets/delete/{uuid.uuid4()}")
 
     assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_secret_list_api(
+    api_client: APIClient,
+    user_account: User,
+) -> None:
+    api_client.force_authenticate(user=user_account)
+    SecretFactory.create_batch(size=10, creator=user_account)
+
+    response = api_client.get("/api/secrets/")
+
+    assert response.status_code == 200
+    response_json = response.json()
+
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "Secrets retrieved successfully"
+    assert len(response_json["data"]) == 10
+    assert response_json["pagination"]["page"] == 1
+    assert response_json["pagination"]["page_size"] == 10
+    assert response_json["pagination"]["total"] == 10
+    assert response_json["pagination"]["has_next"] is False
+
+
+@pytest.mark.django_db
+def test_secret_list_api_with_page_size_20(
+    api_client: APIClient,
+    user_account: User,
+) -> None:
+    api_client.force_authenticate(user=user_account)
+    SecretFactory.create_batch(size=20, creator=user_account)
+
+    response = api_client.get("/api/secrets/?page_size=20")
+
+    assert response.status_code == 200
+    response_json = response.json()
+
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "Secrets retrieved successfully"
+    assert len(response_json["data"]) == 20
+    assert response_json["pagination"]["page"] == 1
+    assert response_json["pagination"]["page_size"] == 20
+    assert response_json["pagination"]["total"] == 20
+    assert response_json["pagination"]["has_next"] is False
+
+
+@pytest.mark.django_db
+def test_secret_list_api_with_page_2(
+    api_client: APIClient,
+    user_account: User,
+) -> None:
+    api_client.force_authenticate(user=user_account)
+    SecretFactory.create_batch(size=20, creator=user_account)
+
+    response = api_client.get("/api/secrets/?page=2")
+
+    assert response.status_code == 200
+    response_json = response.json()
+
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "Secrets retrieved successfully"
+    assert len(response_json["data"]) == 10
+    assert response_json["pagination"]["page"] == 2
+    assert response_json["pagination"]["page_size"] == 10
+    assert response_json["pagination"]["total"] == 20
+    assert response_json["pagination"]["has_next"] is False
+    assert response_json["pagination"]["has_prev"] is True
+
+
+@pytest.mark.django_db
+def test_secret_list_api_with_multiple_pages(
+    api_client: APIClient,
+    user_account: User,
+) -> None:
+    api_client.force_authenticate(user=user_account)
+    SecretFactory.create_batch(size=50, creator=user_account)
+
+    response = api_client.get("/api/secrets/?page=2&page_size=20")
+
+    assert response.status_code == 200
+    response_json = response.json()
+
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "Secrets retrieved successfully"
+    assert len(response_json["data"]) == 20
+    assert response_json["pagination"]["page"] == 2
+    assert response_json["pagination"]["page_size"] == 20
+    assert response_json["pagination"]["total"] == 50
+    assert response_json["pagination"]["has_next"] is True
+    assert response_json["pagination"]["has_prev"] is True
+
+
+@pytest.mark.django_db
+def test_secret_list_api_with_expired_status(
+    api_client: APIClient, user_account: User
+) -> None:
+    api_client.force_authenticate(user=user_account)
+    # Create 10 expired secrets
+    SecretFactory.create_batch(
+        size=10, creator=user_account, expires_at=timezone.now() - timedelta(days=1)
+    )
+    # Create 20 active secrets
+    SecretFactory.create_batch(size=20, creator=user_account)
+
+    response = api_client.get("/api/secrets/?page=2&page_size=5&status=expired")
+    response_json = response.json()
+
+    assert response.status_code == 200
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "Secrets retrieved successfully"
+    assert len(response_json["data"]) == 5
+    assert response_json["pagination"]["page"] == 2
+    assert response_json["pagination"]["page_size"] == 5
+    assert response_json["pagination"]["total"] == 10
+    assert response_json["pagination"]["has_next"] is False
+    assert response_json["pagination"]["has_prev"] is True
+
+
+@pytest.mark.django_db
+def test_secret_list_api_with_viewed_status(
+    api_client: APIClient, user_account: User
+) -> None:
+    api_client.force_authenticate(user=user_account)
+    # Create 10 viewed secrets
+    SecretFactory.create_batch(
+        size=10, creator=user_account, view_count=1, viewed_at=timezone.now()
+    )
+    # Create 20 active secrets
+    SecretFactory.create_batch(size=20, creator=user_account)
+
+    response = api_client.get("/api/secrets/?page=2&page_size=5&status=viewed")
+    response_json = response.json()
+
+    assert response.status_code == 200
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "Secrets retrieved successfully"
+    assert len(response_json["data"]) == 5
+    assert response_json["pagination"]["page"] == 2
+    assert response_json["pagination"]["page_size"] == 5
+    assert response_json["pagination"]["total"] == 10
+    assert response_json["pagination"]["has_next"] is False
+    assert response_json["pagination"]["has_prev"] is True
+
+
+@pytest.mark.django_db
+def test_secret_list_api_with_active_status(
+    api_client: APIClient, user_account: User
+) -> None:
+    api_client.force_authenticate(user=user_account)
+    # Create 10 active secrets
+    SecretFactory.create_batch(size=10, creator=user_account)
+    # Create 20 expired secrets
+    SecretFactory.create_batch(
+        size=20, creator=user_account, expires_at=timezone.now() - timedelta(days=1)
+    )
+    # Create 20 viewed secrets
+    SecretFactory.create_batch(
+        size=20, creator=user_account, view_count=1, viewed_at=timezone.now()
+    )
+
+    response = api_client.get("/api/secrets/?page=2&page_size=5&status=active")
+    response_json = response.json()
+
+    assert response.status_code == 200
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "Secrets retrieved successfully"
+    assert len(response_json["data"]) == 5
+    assert response_json["pagination"]["page"] == 2
+    assert response_json["pagination"]["page_size"] == 5
+    assert response_json["pagination"]["total"] == 10
+    assert response_json["pagination"]["has_next"] is False
+    assert response_json["pagination"]["has_prev"] is True
+
+
+@pytest.mark.django_db
+def test_secret_list_api_with_unauthorized(api_client: APIClient) -> None:
+    response = api_client.get("/api/secrets/?page=2&page_size=5&status=active")
+
+    assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_secret_list_api_with_invalid_status(
+    api_client: APIClient, user_account: User
+) -> None:
+    api_client.force_authenticate(user=user_account)
+    response = api_client.get("/api/secrets/?page=2&page_size=5&status=invalid")
+    response_json = response.json()
+
+    assert response.status_code == 400
+    assert response_json["status"] == "error"
+    assert response_json["message"] == "Invalid status"
+
+
+@pytest.mark.django_db
+def test_secret_list_api_with_different_user(
+    api_client: APIClient, user_account: User
+) -> None:
+    api_client.force_authenticate(user=user_account)
+    other_user = UserFactory()
+    SecretFactory.create_batch(size=10, creator=other_user)
+    response = api_client.get("/api/secrets/?page=1&page_size=10&status=active")
+    response_json = response.json()
+
+    assert response.status_code == 200
+    assert response_json["status"] == "success"
+    assert response_json["message"] == "Secrets retrieved successfully"
+    assert len(response_json["data"]) == 0
+    assert response_json["pagination"]["page"] == 1
+    assert response_json["pagination"]["page_size"] == 10
+    assert response_json["pagination"]["total"] == 0
+    assert response_json["pagination"]["has_next"] is False
