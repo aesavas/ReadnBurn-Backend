@@ -11,6 +11,11 @@ from confidential.serializers import SecretCreateSerializer
 from confidential.serializers import SecretResponseSerializer
 from confidential.services import DEFAULT_MAX_VIEWS
 from confidential.services import SecretService
+from core.utils import create_paginated_response
+from core.utils import paginate_queryset
+from django.db.models import F
+from django.db.models import Q
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
@@ -191,6 +196,65 @@ class SecretDeleteView(APIView):
                 status=status.HTTP_410_GONE,
             )
         except Exception:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "An unexpected error occurred",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class SecretListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request) -> Response:
+        try:
+            # Start with base queryset
+            secrets = Secret.objects.filter(
+                creator=request.user, is_deleted=False
+            ).order_by("-created_at")
+
+            # Filter by status (active|viewed|expired)
+            secret_status = request.GET.get("status")
+            if secret_status:
+                match secret_status:
+                    case "active":
+                        secrets = secrets.filter(
+                            Q(expires_at__gt=timezone.now())
+                            & Q(view_count__lt=F("max_views"))
+                        )
+                    case "viewed":
+                        secrets = secrets.filter(view_count__gt=0)
+                    case "expired":
+                        secrets = secrets.filter(expires_at__lt=timezone.now())
+                    case _:
+                        raise ValueError("Invalid status")
+
+            page = int(request.GET.get("page", 1))
+            page_size = int(request.GET.get("page_size", 10))
+
+            paginated_data = paginate_queryset(secrets, page, page_size)
+            serialized_data = SecretResponseSerializer(
+                paginated_data["items"], many=True
+            ).data
+
+            return create_paginated_response(
+                list(serialized_data),
+                paginated_data["pagination"],
+                "Secrets retrieved successfully",
+            )
+        except ValueError:
+            return Response(
+                {
+                    "status": "error",
+                    "message": "Invalid status",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        except Exception as e:
+            print(e)
             return Response(
                 {
                     "status": "error",

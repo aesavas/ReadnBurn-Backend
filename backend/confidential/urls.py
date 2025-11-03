@@ -1,10 +1,12 @@
 from confidential.views import SecretCreateView
 from confidential.views import SecretDeleteView
 from confidential.views import SecretDetailView
+from confidential.views import SecretListView
 from confidential.views import SecretRetrieveView
 from django.urls import path
 
 urlpatterns = [
+    path("", SecretListView.as_view(), name="secret_list"),
     path("create/", SecretCreateView.as_view(), name="secret_create"),
     path(
         "retrieve/<uuid:secret_id>",
