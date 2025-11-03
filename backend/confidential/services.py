@@ -13,6 +13,7 @@ from confidential.models import Secret
 from confidential.models import SecretViewLog
 from core.encryption import decrypt_message
 from core.encryption import encrypt_message
+from django.core.cache import cache
 from django.db import OperationalError
 from django.db import transaction
 from django.utils import timezone
@@ -35,6 +36,8 @@ class SecretService:
         key: bytes = ENCRYPTION_KEY.encode(),
     ) -> Secret:
         """Create a new secret."""
+        # Delete user stats cache on secret creation
+        cache.delete(f"user_stats_{user.id}")
         return cast(
             Secret,
             Secret.objects.create(
@@ -63,6 +66,8 @@ class SecretService:
                     user_agent=user_agent,
                     success=True,
                 )
+                # Delete user stats cache on secret retrieval
+                cache.delete(f"user_stats_{secret.creator.id}")
                 return decrypt_message(secret.encrypted_content, key)
         except OperationalError:
             # This occurs if the select_for_update() call hits a lock from a concurrent request.
