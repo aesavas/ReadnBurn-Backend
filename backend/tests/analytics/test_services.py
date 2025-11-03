@@ -6,6 +6,7 @@ from typing import ContextManager
 import pytest
 from analytics.services import AnalyticsService
 from confidential.models import User
+from confidential.services import SecretService
 from django.core.cache import cache
 from django.test.utils import override_settings
 from django.utils import timezone
@@ -101,3 +102,36 @@ def test_cache_hit_miss_behavior(
         stats3 = AnalyticsService.get_user_stats(user_account)
 
     assert stats3 == stats1
+
+
+@pytest.mark.django_db
+@override_settings(
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
+)
+def test_cache_invalidation_on_secret_creation(user_account: User) -> None:
+    """Test that cache is invalidated on secret creation."""
+    cache.clear()
+    SecretFactory.create_batch(size=5, creator=user_account)
+    stats = AnalyticsService.get_user_stats(user_account)
+    assert stats["total_secrets"] == 5
+
+    # There is a cache key in first call
+    assert cache.get(f"user_stats_{user_account.id}") is not None
+
+    SecretService.create_secret(
+        user=user_account,
+        content="test",
+    )
+
+    # Cache is invalidated on secret creation
+    assert cache.get(f"user_stats_{user_account.id}") is None
+
+    stats = AnalyticsService.get_user_stats(user_account)
+    assert stats["total_secrets"] == 6
+
+    # Again cache created for second call
+    assert cache.get(f"user_stats_{user_account.id}") is not None
